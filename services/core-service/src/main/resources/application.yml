@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: watchdog-core-service
+  profiles:
+    default: local
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  port: 8080
+
+watchdog:
+  security:
+    placeholder-token: dev-placeholder-token

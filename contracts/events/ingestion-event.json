@@ -1,0 +1,14 @@
+{
+  "eventId": "0f7dcb91-1baf-43bf-a8d5-1b90ce4aa001",
+  "source": "payment-service",
+  "kind": "LOG",
+  "timestamp": "2026-03-19T10:15:30Z",
+  "payload": {
+    "message": "Database connection timeout",
+    "severityHint": "HIGH",
+    "attributes": {
+      "region": "ap-south-1",
+      "environment": "dev"
+    }
+  }
+}
