@@ -1,0 +1,110 @@
+\section{Architecture Prototypes (SOA/Microservices)}
+
+The goal of this section is to propose multiple \emph{simple} but \emph{detailed} candidate architectures.
+We will later compare trade-offs and choose one.
+
+\subsection{Shared Principles (All Prototypes)}
+\begin{itemize}
+  \item Clear service boundaries: ingestion (\service{watcher-service}), orchestration (\service{core-service}), enrichment (\service{nlp-service}).
+  \item A stable contract for events and APIs (schemas under \texttt{contracts/}).
+  \item Database-per-service (start with PostgreSQL for \service{core-service}; keep others stateless where possible).
+  \item Idempotency and correlation IDs for safe retries.
+  \item Health endpoints on every service.
+\end{itemize}
+
+\subsection{Prototype A: Direct Orchestration (No Broker)}
+\textbf{Intent:} minimize infrastructure and complexity; good for early MVP.
+
+\begin{itemize}
+  \item External producers send events to \service{watcher-service}.
+  \item \service{watcher-service} validates and normalizes events, then calls \service{core-service} via gRPC.
+  \item \service{core-service} persists tickets and calls \service{nlp-service} via gRPC when log text needs enrichment.
+  \item All flows are request/response; retries use idempotency keys.
+\end{itemize}
+
+\textbf{Key contracts (suggested):}
+\begin{itemize}
+  \item Public ingestion: \apiendpoint{POST /api/v1/ingest} to \service{watcher-service}.
+  \item Internal event handoff (gRPC): \texttt{watchdog.core.v1.EventIngestor/SubmitEvent}.
+  \item Internal enrichment (gRPC): \texttt{watchdog.nlp.v1.Analyzer/Analyze}.
+\end{itemize}
+
+\textbf{Failure and retry behavior:}
+\begin{itemize}
+  \item If \service{core-service} is slow/unavailable, \service{watcher-service} must apply timeouts and safe retries.
+  \item Use \texttt{event\_id} as an idempotency key so \service{core-service} can safely ignore duplicates.
+  \item If \service{nlp-service} fails, \service{core-service} should still create the ticket and mark enrichment as pending.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{prototype-a-direct-rest.png}
+  \caption{Prototype A: Direct REST orchestration}
+\end{figure}
+
+\subsection{Prototype B: Event-Driven With Message Broker (Recommended Direction)}
+\textbf{Intent:} decouple ingestion from orchestration; enable buffering and smoother scaling.
+
+\begin{itemize}
+  \item \service{watcher-service} publishes normalized events to a broker (RabbitMQ/Kafka).
+  \item \service{core-service} consumes events and decides: open/update tickets, or ignore.
+  \item \service{nlp-service} can be invoked either synchronously by \service{core-service} via gRPC or asynchronously by subscribing to log events.
+  \item Use a dead-letter queue (DLQ) and replay tooling to handle poison messages.
+\end{itemize}
+
+\textbf{Suggested topics/queues:}
+\begin{itemize}
+  \item \texttt{watchdog.normalized-events} (all events) or split by kind: \texttt{watchdog.logs}, \texttt{watchdog.metrics}
+  \item \texttt{watchdog.enrichment-events} (enrichment results)
+  \item \texttt{watchdog.dlq} (dead letters after max retries)
+\end{itemize}
+
+\textbf{Processing model:}
+\begin{itemize}
+  \item At-least-once delivery: consumers must be idempotent (dedupe by \texttt{event\_id}).
+  \item Backpressure is handled by the broker (queue depth) rather than by making producers wait.
+  \item A ``poison message'' lands in DLQ with enough metadata to replay after fixing the root cause.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{prototype-b-event-driven.png}
+  \caption{Prototype B: Event-driven ingestion and processing}
+\end{figure}
+
+\subsection{Prototype C: Pipeline With Log Store + Async Enrichment}
+\textbf{Intent:} separate large/raw log payload storage from ticket decisions; keep event bus lean.
+
+\begin{itemize}
+  \item \service{watcher-service} writes raw logs to a log store (OpenSearch/ELK/Object Storage) and publishes a small ``pointer event'' to the broker.
+  \item \service{core-service} consumes pointer events and applies rules to open/update tickets.
+  \item \service{nlp-service} consumes pointer events, fetches full text from the log store, computes enrichment, and writes results back.
+  \item \service{core-service} attaches enrichment to tickets asynchronously (eventual consistency).
+\end{itemize}
+
+\textbf{Pointer event (example fields):}
+\begin{itemize}
+  \item \texttt{event\_id}, \texttt{kind}, \texttt{source}, \texttt{occurred\_at}
+  \item \texttt{payload\_ref}: where to fetch raw content (index + document id, or bucket + object key)
+  \item \texttt{content\_hash}: detect duplicates and ensure content integrity
+\end{itemize}
+
+\textbf{Why this helps:}
+\begin{itemize}
+  \item The broker carries small messages; raw payload retention can be managed by the log store.
+  \item Enrichment can be recomputed later by replaying pointer events without re-ingesting raw logs.
+  \item Ticket decisions can remain fast, even if enrichment takes longer.
+\end{itemize}
+
+\textbf{Internal API policy (critical modification):}
+All service-to-service \emph{direct} calls (when needed for backfill, re-enrichment, or admin workflows) use gRPC.
+REST is reserved for public/external APIs.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{prototype-c-pipeline-async-enrichment.png}
+  \caption{Prototype C: Log store pipeline with async enrichment}
+\end{figure}
+
+\subsection{Status}
+Trade-offs are captured in \texttt{sections/tradeoffs.tex}. The selected target is documented in the architecture document.

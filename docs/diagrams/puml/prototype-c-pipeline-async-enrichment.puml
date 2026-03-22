@@ -1,0 +1,35 @@
+@startuml
+title Prototype C - Log Store Pipeline + Async Enrichment
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+
+actor "Producers" as Prod
+
+rectangle "Watcher Service (Go)\n- validate\n- normalize\n- store raw\n- publish pointer" as Watcher
+cloud "Log Store\n(OpenSearch/S3/ELK)" as LogStore
+queue "Kafka\n(pointer events)" as Broker
+rectangle "Core Service (Spring)\n- consume pointers\n- rules\n- tickets" as Core
+rectangle "NLP Service (FastAPI)\n- consume pointers\n- fetch raw\n- enrich" as NLP
+database "PostgreSQL" as PG
+
+Prod --> Watcher : POST /api/v1/ingest
+Watcher --> LogStore : write raw event\n(body, headers)
+Watcher --> Broker : publish PointerEvent\n(event_id, location)
+
+Broker --> Core : consume PointerEvent
+Core --> PG : insert/update ticket\n(minimal fields)
+
+Broker --> NLP : consume PointerEvent
+NLP --> LogStore : fetch raw text
+NLP --> LogStore : write enrichment\n(category, severity, entities)
+NLP --> Broker : publish EnrichmentEvent\n(event_id, summary)
+
+Broker --> Core : consume EnrichmentEvent
+Core --> PG : attach enrichment
+
+Core ..> NLP : gRPC Analyze\n(on-demand re-enrich/backfill)
+
+@enduml

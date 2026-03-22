@@ -3,6 +3,7 @@
 Each subdirectory contains an independently deployable service.
 
 - `core-service`: Spring Boot orchestration and ticket management
+- `dashboard`: React/TypeScript operator console
 - `watcher-service`: Go ingestion and event normalization
 - `nlp-service`: FastAPI classification and enrichment
 

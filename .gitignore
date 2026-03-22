@@ -30,3 +30,8 @@ buildNumber.properties
 **/*.pyc
 services/core-service/target/
 services/watcher-service/watcher-service
+
+# LaTeX / Tectonic artifacts
+docs/latex/out/
+.cache/tectonic/
+.cache/go-build/

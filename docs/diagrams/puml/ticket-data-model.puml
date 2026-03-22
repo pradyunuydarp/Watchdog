@@ -1,0 +1,43 @@
+@startuml
+title Ticket Data Model (Logical)
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+
+class Ticket {
+  +id: UUID
+  +source: string
+  +type: enum {PROACTIVE_ALERT, REACTIVE_CRASH}
+  +severity: enum {LOW, MEDIUM, CRITICAL}
+  +status: enum {OPEN, INVESTIGATING, RESOLVED}
+  +title: string
+  +created_at: timestamp
+  +updated_at: timestamp
+}
+
+class TicketComment {
+  +id: UUID
+  +ticket_id: UUID
+  +author: string
+  +message: string
+  +created_at: timestamp
+}
+
+class Enrichment {
+  +id: UUID
+  +ticket_id: UUID
+  +category: string
+  +severity: string
+  +confidence: float
+  +entities: string[]
+  +model_version: string
+  +created_at: timestamp
+}
+
+Ticket "1" o-- "*" TicketComment : has
+Ticket "1" o-- "0..*" Enrichment : enriched by
+
+@enduml
+

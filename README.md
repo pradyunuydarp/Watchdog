@@ -13,6 +13,7 @@ The `landon-hotel` directory is intentionally excluded from this implementation 
 ├── infra/                  # Local infrastructure bootstrap files
 ├── services/
 │   ├── core-service/       # Spring Boot orchestration service
+│   ├── dashboard/          # React/TypeScript operator dashboard
 │   ├── watcher-service/    # Go ingestion service
 │   └── nlp-service/        # FastAPI NLP enrichment service
 └── docker-compose.yml      # Local multi-service development stack
@@ -21,9 +22,10 @@ The `landon-hotel` directory is intentionally excluded from this implementation 
 ## Current Scope
 
 - `core-service`: starter ticket-management service with security and PostgreSQL stubs.
-- `watcher-service`: ingestion API with event classification and publisher abstractions.
-- `nlp-service`: heuristic analyzer service exposing an internal enrichment API.
-- Root infrastructure: local Postgres bootstrap, environment template, and compose wiring.
+- `watcher-service`: ingestion API with normalized-event publishing scaffolding for Kafka.
+- `nlp-service`: heuristic analyzer service with service-layer and gRPC-prep abstractions.
+- `dashboard`: operator dashboard scaffold with mock/live API adapters.
+- Root infrastructure: Kafka + Supabase-oriented environment wiring and local compose scaffolding.
 
 ## Quick Start
 

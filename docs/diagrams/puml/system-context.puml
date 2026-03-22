@@ -1,0 +1,39 @@
+@startuml
+title Watchdog - System Context
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+skinparam ArrowColor #2d2d2d
+
+actor "Operators\n(DevOps/SRE)" as Ops
+actor "Producers\n(Apps/Agents)" as Prod
+
+rectangle "Watchdog Platform" as WD {
+  rectangle "Watcher Service\n(ingest + normalize)" as Watcher
+  rectangle "Core Service\n(tickets + rules)" as Core
+  rectangle "NLP Service\n(enrichment)" as NLP
+  rectangle "Dashboard\n(roadmap)" as UI
+}
+
+database "PostgreSQL\n(core store)" as PG
+queue "Message Broker\n(optional)" as Broker
+cloud "Log Store\n(optional)" as LogStore
+
+Prod --> Watcher : send logs/metrics
+Watcher --> Core : forward events\n(gRPC or broker)
+Core --> NLP : analyze text\n(gRPC sync or async)
+Core --> PG : persist tickets
+
+Ops --> UI : view tickets\nconfigure rules
+UI --> Core : management APIs
+
+Watcher ..> Broker : publish events\n(optional)
+Core ..> Broker : consume events\n(optional)
+NLP ..> Broker : consume/publish\n(optional)
+
+Watcher ..> LogStore : write raw logs\n(optional)
+NLP ..> LogStore : fetch raw logs\n(optional)
+
+@enduml

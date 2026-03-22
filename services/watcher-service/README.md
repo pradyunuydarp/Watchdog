@@ -1,11 +1,24 @@
 # Watcher Service
 
-Minimal Go HTTP service for Watchdog ingestion.
+Go HTTP ingestion service for Watchdog.
+
+This implementation keeps the current development stage lightweight:
+
+- HTTP ingest and health endpoints are live
+- incoming requests are normalized into a canonical event envelope
+- Kafka publishing is scaffolded behind a narrow writer interface
+- local runs stay functional even when a Kafka client is not wired in yet
 
 ## Endpoints
 
 - `GET /api/v1/health`
 - `POST /api/v1/ingest`
+
+## Environment
+
+- `PUBLISH_MODE=kafka` enables the Kafka scaffold
+- `KAFKA_BROKERS` sets the target broker list
+- `KAFKA_TOPIC` sets the publish topic
 
 ## Request Shape
 
@@ -43,4 +56,3 @@ go run ./cmd/watcher-service
 ```bash
 go build ./cmd/watcher-service
 ```
-

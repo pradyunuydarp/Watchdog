@@ -1,33 +1,48 @@
 package com.watchdog.core.config;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
+import com.watchdog.core.security.PlaceholderAuthenticationFilter;
+import com.watchdog.core.security.SupabaseJwtAuthenticationConverter;
+import java.nio.charset.StandardCharsets;
+import javax.crypto.spec.SecretKeySpec;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoders;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * Central security configuration for the core service.
+ *
+ * <p>The service currently supports two operating modes:
+ *
+ * <ul>
+ *     <li>{@code PLACEHOLDER}: a local-development shortcut that accepts a single configured bearer token.</li>
+ *     <li>{@code SUPABASE}: validates JWTs using either a shared secret, a JWK set URI, or an issuer URI.</li>
+ * </ul>
+ *
+ * <p>This class is deliberately explicit because authentication is one of the first areas that gets
+ * revisited when a system moves from a scaffold into a real environment. Keeping the branching logic
+ * here makes that transition easier to audit and evolve.
+ */
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, PlaceholderJwtAuthenticationFilter placeholderJwtAuthenticationFilter)
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            WatchdogSecurityProperties securityProperties,
+            PlaceholderAuthenticationFilter placeholderAuthenticationFilter,
+            SupabaseJwtAuthenticationConverter supabaseJwtAuthenticationConverter)
             throws Exception {
-        return http
+        HttpSecurity configured = http
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
@@ -37,54 +52,61 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/health").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(placeholderJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
+                        .anyRequest().authenticated());
+
+        if (securityProperties.mode() == WatchdogSecurityProperties.SecurityMode.PLACEHOLDER) {
+            configured.addFilterBefore(placeholderAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        } else {
+            configured.oauth2ResourceServer(oauth2 -> oauth2
+                    .jwt(jwt -> jwt.jwtAuthenticationConverter(supabaseJwtAuthenticationConverter)));
+        }
+
+        return configured.build();
     }
 
     @Bean
-    public PlaceholderJwtAuthenticationFilter placeholderJwtAuthenticationFilter(
-            @Value("${watchdog.security.placeholder-token:dev-placeholder-token}") String placeholderToken) {
-        return new PlaceholderJwtAuthenticationFilter(placeholderToken);
+    public PlaceholderAuthenticationFilter placeholderAuthenticationFilter(WatchdogSecurityProperties securityProperties) {
+        return new PlaceholderAuthenticationFilter(securityProperties.placeholderToken());
     }
 
     /**
-     * Starter-only JWT hook.
+     * Creates the JWT decoder used in Supabase mode.
      *
-     * Replace this token check with real JWT validation, key discovery, issuer/audience enforcement,
-     * and claim-to-authority mapping before exposing the service to a gateway or external client.
+     * <p>The method supports three common development/production setups:
+     *
+     * <ol>
+     *     <li>Local Supabase using an HS256 shared secret.</li>
+     *     <li>A fixed JWK set endpoint.</li>
+     *     <li>Issuer-based discovery for fully managed deployments.</li>
+     * </ol>
      */
-    static final class PlaceholderJwtAuthenticationFilter extends OncePerRequestFilter {
+    @Bean
+    public JwtDecoder jwtDecoder(WatchdogSecurityProperties securityProperties) {
+        WatchdogSecurityProperties.SupabaseJwtProperties supabase = securityProperties.supabase();
 
-        private final String placeholderToken;
-
-        private PlaceholderJwtAuthenticationFilter(String placeholderToken) {
-            this.placeholderToken = placeholderToken;
+        if (securityProperties.mode() == WatchdogSecurityProperties.SecurityMode.PLACEHOLDER) {
+            return token -> {
+                throw new IllegalStateException("JwtDecoder should not be used while placeholder security mode is active.");
+            };
         }
 
-        @Override
-        protected boolean shouldNotFilter(HttpServletRequest request) {
-            return "/api/v1/health".equals(request.getRequestURI());
+        if (supabase.sharedSecret() != null && !supabase.sharedSecret().isBlank()) {
+            return NimbusJwtDecoder.withSecretKey(
+                            new SecretKeySpec(supabase.sharedSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"))
+                    .macAlgorithm(MacAlgorithm.HS256)
+                    .build();
         }
 
-        @Override
-        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-                throws ServletException, IOException {
-            if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-                if (authorization != null && authorization.startsWith("Bearer ")) {
-                    String token = authorization.substring("Bearer ".length()).trim();
-                    if (placeholderToken.equals(token)) {
-                        SecurityContextHolder.getContext().setAuthentication(
-                                new UsernamePasswordAuthenticationToken(
-                                        "watchdog-dev",
-                                        token,
-                                        List.of(new SimpleGrantedAuthority("ROLE_OPERATOR"))));
-                    }
-                }
-            }
-
-            filterChain.doFilter(request, response);
+        if (supabase.jwkSetUri() != null && !supabase.jwkSetUri().isBlank()) {
+            return NimbusJwtDecoder.withJwkSetUri(supabase.jwkSetUri()).build();
         }
+
+        if (supabase.issuerUri() != null && !supabase.issuerUri().isBlank()) {
+            return JwtDecoders.fromIssuerLocation(supabase.issuerUri());
+        }
+
+        throw new IllegalStateException(
+                "Supabase security mode requires watchdog.security.supabase.shared-secret, "
+                        + "watchdog.security.supabase.jwk-set-uri, or watchdog.security.supabase.issuer-uri.");
     }
 }

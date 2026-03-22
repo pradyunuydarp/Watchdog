@@ -1,0 +1,33 @@
+@startuml
+title Reactive Log Flow (Asynchronous Enrichment)
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+
+actor Producer as P
+participant "Watcher Service" as W
+queue "Broker" as B
+participant "Core Service" as C
+participant "NLP Service" as N
+database "PostgreSQL" as DB
+
+P -> W : POST /api/v1/ingest (LOG)
+W -> W : validate + normalize\nassign event_id
+W -> B : publish NormalizedEvent
+W --> P : 202 Accepted
+
+B -> C : consume NormalizedEvent
+C -> C : rules: open/update ticket?
+C -> DB : upsert ticket (pending enrichment)
+
+B -> N : consume NormalizedEvent\n(kind=LOG)
+N -> N : analyze text
+N -> B : publish EnrichmentEvent
+
+B -> C : consume EnrichmentEvent
+C -> DB : attach enrichment\n(update ticket)
+
+@enduml
+

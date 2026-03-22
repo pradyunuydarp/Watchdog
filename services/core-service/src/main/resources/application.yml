@@ -6,10 +6,30 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  kafka:
+    bootstrap-servers: ${WATCHDOG_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${WATCHDOG_KAFKA_GROUP_ID:watchdog-core-service}
+      auto-offset-reset: earliest
 
 server:
   port: 8080
 
 watchdog:
   security:
-    placeholder-token: dev-placeholder-token
+    mode: ${WATCHDOG_SECURITY_MODE:PLACEHOLDER}
+    placeholder-token: ${WATCHDOG_SECURITY_PLACEHOLDER_TOKEN:dev-placeholder-token}
+    supabase:
+      issuer-uri: ${WATCHDOG_AUTH_ISSUER:}
+      jwk-set-uri: ${WATCHDOG_AUTH_JWK_SET_URI:}
+      shared-secret: ${WATCHDOG_AUTH_JWT_SECRET:}
+      role-claim-path: ${WATCHDOG_AUTH_ROLE_CLAIM_PATH:app_metadata.roles}
+      expected-audience: ${WATCHDOG_AUTH_EXPECTED_AUDIENCE:authenticated}
+  kafka:
+    enabled: ${WATCHDOG_KAFKA_ENABLED:false}
+    bootstrap-servers: ${WATCHDOG_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer-group-id: ${WATCHDOG_KAFKA_GROUP_ID:watchdog-core-service}
+    topics:
+      pointer-events: ${WATCHDOG_KAFKA_POINTER_TOPIC:watchdog.pointer-events.v1}
+      enrichment-events: ${WATCHDOG_KAFKA_ENRICHMENT_TOPIC:watchdog.enrichment-events.v1}
+      dead-letter-events: ${WATCHDOG_KAFKA_DLQ_TOPIC:watchdog.dlq.v1}

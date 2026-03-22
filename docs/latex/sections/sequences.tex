@@ -1,0 +1,16 @@
+\section{Key Flows (Sequence Diagrams)}
+
+\subsection{Reactive log ingestion $\rightarrow$ ticket $\rightarrow$ enrichment (sync)}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{seq-reactive-sync.png}
+  \caption{Synchronous enrichment flow (fits Prototype A, optional in B)}
+\end{figure}
+
+\subsection{Reactive log ingestion $\rightarrow$ async enrichment $\rightarrow$ ticket update}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{seq-reactive-async.png}
+  \caption{Asynchronous enrichment flow (fits Prototype B/C)}
+\end{figure}
+

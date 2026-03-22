@@ -1,53 +1,50 @@
+// Command watcher-service starts the Watchdog ingestion service.
 package main
 
 import (
 	"log"
 	"net/http"
-	"os"
-	"time"
 
-	watcherhttp "github.com/pradyundevarakonda/watchdog/watcher-service/internal/transport/http"
+	"github.com/pradyundevarakonda/watchdog/watcher-service/internal/config"
+	"github.com/pradyundevarakonda/watchdog/watcher-service/internal/publisher"
 	"github.com/pradyundevarakonda/watchdog/watcher-service/internal/service"
+	watcherhttp "github.com/pradyundevarakonda/watchdog/watcher-service/internal/transport/http"
 )
 
 func main() {
-	addr := envOrDefault("PORT", "8081")
-	serviceName := envOrDefault("SERVICE_NAME", "watcher-service")
+	cfg := config.Load()
 
-	ingestionService := service.NewIngestionService(nil)
-	handler := watcherhttp.NewHandler(serviceName, ingestionService)
+	ingestionPublisher := buildPublisher(cfg)
+	ingestionService := service.NewIngestionService(ingestionPublisher)
+	handler := watcherhttp.NewHandler(cfg.ServiceName, ingestionService)
 
 	server := &http.Server{
-		Addr:         ":" + addr,
+		Addr:         cfg.ListenAddr(),
 		Handler:      handler.Routes(),
-		ReadTimeout:  durationOrDefault("READ_TIMEOUT", 5*time.Second),
-		WriteTimeout: durationOrDefault("WRITE_TIMEOUT", 10*time.Second),
-		IdleTimeout:  durationOrDefault("IDLE_TIMEOUT", 60*time.Second),
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
 	}
 
-	log.Printf("%s listening on %s", serviceName, server.Addr)
+	log.Printf("%s listening on %s", cfg.ServiceName, server.Addr)
+	if cfg.UseKafka() {
+		log.Printf("%s kafka scaffold enabled brokers=%v topic=%s", cfg.ServiceName, cfg.Kafka.Brokers, cfg.Kafka.Topic)
+	}
+
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server failed: %v", err)
 	}
 }
 
-func envOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func durationOrDefault(key string, fallback time.Duration) time.Duration {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
+// buildPublisher selects the Kafka scaffold when Kafka is configured and otherwise falls back to a no-op publisher.
+func buildPublisher(cfg config.Config) publisher.Publisher {
+	if !cfg.UseKafka() {
+		return publisher.NoopPublisher{}
 	}
 
-	parsed, err := time.ParseDuration(value)
-	if err != nil {
-		return fallback
-	}
-
-	return parsed
+	return publisher.NewKafkaPublisher(
+		cfg.Kafka.Topic,
+		cfg.Kafka.Brokers,
+		publisher.NewDebugWriter(log.Default()),
+	)
 }

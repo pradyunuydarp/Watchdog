@@ -1,0 +1,72 @@
+\section{Trade-off Analysis (Prototype Comparison)}
+
+This section compares the prototypes on operational complexity, performance, reliability, and developer velocity.
+It does \emph{not} pick a winner yet; it defines how we will decide.
+
+\subsection{Evaluation Criteria}
+\begin{itemize}
+  \item \textbf{Simplicity:} how many moving parts must be deployed and understood.
+  \item \textbf{Coupling:} how strongly services depend on each other's uptime and latency.
+  \item \textbf{Backpressure handling:} behavior during bursts and downstream slowdowns.
+  \item \textbf{Latency:} time-to-ticket and time-to-enrichment.
+  \item \textbf{Reliability:} replayability, safe retries, and failure isolation.
+  \item \textbf{Operability:} debugging, observability, and day-2 operations.
+  \item \textbf{Cost:} infrastructure + operational overhead.
+  \item \textbf{Data retention:} raw event storage, reprocessing, and auditing.
+\end{itemize}
+
+\subsection{Comparison Summary}
+
+\begin{longtable}{@{}p{0.18\linewidth}p{0.26\linewidth}p{0.26\linewidth}p{0.26\linewidth}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Prototype A (Direct REST)} & \textbf{Prototype B (Broker)} & \textbf{Prototype C (Log Store + Broker)} \\
+\midrule
+Infra components & Lowest (3 services + DB) & Medium (adds broker + DLQ) & Highest (adds broker + log store) \\
+Coupling & High (sync dependencies) & Medium (async ingestion; optional sync NLP) & Low/Medium (async by default) \\
+Burst handling & Weak unless watcher buffers & Strong (broker absorbs spikes) & Strong (broker + raw storage separation) \\
+Time-to-ticket & Low (direct call path) & Medium/Low (consume lag under load) & Medium/Low (consume lag; pointer events) \\
+Time-to-enrichment & Low if NLP stable & Medium (async option) & Medium (async default; fetch from store) \\
+Replay/reprocess & Hard (needs custom logs) & Good (replay from broker) & Best (replay pointers + reread raw) \\
+Payload size limits & Tight (HTTP/request size) & Medium (broker limits) & Best (broker carries pointers only) \\
+Debugging & Simple trace path & Needs queue tooling & Needs queue + store tooling \\
+Cost & Lowest & Medium & Highest \\
+\bottomrule
+\end{longtable}
+
+\subsection{Common Failure Modes and Mitigations}
+\textbf{Applies to all prototypes:}
+\begin{itemize}
+  \item \textbf{Duplicate events:} use \texttt{event\_id} for idempotency and deduplication.
+  \item \textbf{Hot sources:} add per-source rate limiting and sampling policies.
+  \item \textbf{Noisy events:} implement suppression windows and grouping keys (e.g., \texttt{source + category + signature}).
+\end{itemize}
+
+\textbf{Prototype A specific:}
+\begin{itemize}
+  \item \textbf{Downstream slowness cascades:} watcher and core must enforce timeouts and fail fast.
+  \item \textbf{NLP outage blocks requests:} create tickets without enrichment and enrich later via retry queue.
+\end{itemize}
+
+\textbf{Prototype B specific:}
+\begin{itemize}
+  \item \textbf{Poison messages:} route to DLQ after bounded retries; build replay tooling.
+  \item \textbf{Exactly-once assumptions:} assume at-least-once; make consumers idempotent.
+\end{itemize}
+
+\textbf{Prototype C specific:}
+\begin{itemize}
+  \item \textbf{Pointer refers to missing raw payload:} enforce write-before-publish and include \texttt{content\_hash}.
+  \item \textbf{Store growth:} define retention policies and index lifecycle management early.
+\end{itemize}
+
+\subsection{Decision Rubric (How We Will Choose)}
+We pick the prototype that best fits the first target environment and workload.
+Use these questions as the selection checklist:
+\begin{enumerate}
+  \item What is the peak ingestion rate and expected burst size?
+  \item Is ``ticket created within X seconds'' a hard SLO?
+  \item Is enrichment required for correctness, or can it be eventually consistent?
+  \item Do we need replay/reprocessing for audits or model improvements?
+  \item How much infrastructure is acceptable for the MVP (Kafka, log store, Supabase)?
+  \item What is the operational maturity of the team running it?
+\end{enumerate}

@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package watchdog.nlp.v1;
+
+option go_package = "github.com/pradyundevarakonda/watchdog/contracts/grpc/watchdog/nlp/v1;nlpv1";
+
+import "watchdog/common/v1/event.proto";
+
+service Analyzer {
+  rpc Analyze(AnalyzeRequest) returns (AnalyzeResponse);
+}
+
+message AnalyzeRequest {
+  string text = 1;
+  string source = 2;
+  string correlation_id = 3;
+  map<string, string> attributes = 4;
+}
+
+message AnalyzeResponse {
+  watchdog.common.v1.Enrichment enrichment = 1;
+}
+

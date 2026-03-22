@@ -1,0 +1,12 @@
+{"text": "Database timeout while processing payment request", "category": "database", "severity": "high"}
+{"text": "Critical outage: payment API is down in production", "category": "infrastructure", "severity": "critical"}
+{"text": "JWT token rejected for admin login attempt", "category": "authentication", "severity": "medium"}
+{"text": "High latency observed on the gateway network path", "category": "network", "severity": "high"}
+{"text": "CPU usage is elevated and throughput is degrading", "category": "performance", "severity": "medium"}
+{"text": "Postgres query failure blocked checkout flow", "category": "database", "severity": "high"}
+{"text": "Kubernetes node disk pressure triggered service restart", "category": "infrastructure", "severity": "high"}
+{"text": "Permission denied during auth service token refresh", "category": "authentication", "severity": "medium"}
+{"text": "Packet loss is causing socket connection failures", "category": "network", "severity": "high"}
+{"text": "Memory saturation slowed batch processing jobs", "category": "performance", "severity": "medium"}
+{"text": "Immediate outage after deploy left the checkout service unavailable", "category": "infrastructure", "severity": "critical"}
+{"text": "MySQL connection timeout caused repeated payment errors", "category": "database", "severity": "high"}

@@ -1,0 +1,70 @@
+\documentclass[11pt]{article}
+\input{common/preamble.tex}
+
+\title{\watchdog{} --- Architecture Document}
+\author{}
+\date{March 20, 2026}
+
+\begin{document}
+\maketitle
+
+\section{Purpose and Scope}
+\watchdog{} is a service-oriented monitoring and incident triage platform.
+It ingests logs/metrics, reduces noise, opens incident tickets, and enriches incidents with NLP-based classification.
+
+\section{Current Codebase Snapshot}
+This repository currently contains three services:
+\begin{itemize}
+  \item \service{watcher-service} (Go): ingestion + basic event normalization
+  \item \service{core-service} (Spring Boot): ticket APIs + orchestration starter
+  \item \service{nlp-service} (FastAPI): enrichment API (heuristic stub)
+\end{itemize}
+
+\section{System Context}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{system-context.png}
+  \caption{System context}
+\end{figure}
+
+\input{sections/features.tex}
+\input{sections/prototypes-overview.tex}
+\input{sections/tradeoffs.tex}
+\input{sections/sequences.tex}
+
+\section{Decision: Prototype C + gRPC Internal APIs}
+We proceed with \textbf{Prototype C} as the target architecture, with a critical modification:
+\textbf{internal (service-to-service) APIs are gRPC}, leveraging strong Go support.
+
+The primary runtime integration remains asynchronous (broker + pointer events), while gRPC is used for:
+\begin{itemize}
+  \item on-demand enrichment or re-enrichment,
+  \item operational backfills and replay tooling,
+  \item future internal configuration/control-plane calls.
+\end{itemize}
+
+\section{Development Environment Decisions (Local, Dockerized)}
+\subsection{Message Broker: Kafka}
+Kafka is the chosen broker for local development and as the default target for production.
+Topics follow explicit versioning (for example, \texttt{watchdog.pointer-events.v1}).
+
+\subsection{Database + Auth Provider: Supabase}
+Supabase is the chosen provider for:
+\begin{itemize}
+  \item \textbf{Postgres database} (tickets, users, audit),
+  \item \textbf{Auth} (JWT issuance; RBAC via claims/policies).
+\end{itemize}
+
+\textbf{Local development:} use Supabase locally (dockerized) and connect services to it.
+On macOS Docker, containers reach the host via \texttt{host.docker.internal}.
+
+\section{Open Questions}
+\begin{itemize}
+  \item What is the first target environment: local only, VM, or Kubernetes?
+  \item Do we need multi-tenancy or a single-tenant deployment model?
+  \item What are acceptable latencies for ticket creation and for enrichment to appear on tickets?
+  \item What is the initial topic layout and retention policy for Kafka?
+  \item What is the expected event rate (steady-state and burst)?
+\end{itemize}
+
+\end{document}

@@ -1,5 +1,16 @@
 # Watchdog Architecture
 
+## Architecture & Design Docs (LaTeX)
+
+- `docs/latex/watchdog-architecture.tex`: feature list + architecture prototypes + diagrams
+- `docs/latex/watchdog-design.tex`: service-level design (prototype-friendly)
+- Diagrams: `docs/diagrams/puml/` (sources) and `docs/diagrams/images/` (rendered PNGs)
+
+## Development-stage Decisions (Current)
+
+- Broker: Kafka
+- DB + Auth: Supabase (local dockerized for development)
+
 ## Service Boundaries
 
 ### Core Service

@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package watchdog.common.v1;
+
+option go_package = "github.com/pradyundevarakonda/watchdog/contracts/grpc/watchdog/common/v1;commonv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  LOG = 1;
+  METRIC = 2;
+  POINTER = 3;
+  ENRICHMENT = 4;
+}
+
+// Canonical envelope for Watchdog events. This is used logically across prototypes,
+// even when transported via queues rather than gRPC.
+message EventEnvelope {
+  string event_id = 1;
+  string source = 2;
+  EventKind kind = 3;
+
+  google.protobuf.Timestamp occurred_at = 4;
+  google.protobuf.Timestamp received_at = 5;
+
+  string correlation_id = 6;
+  map<string, string> attributes = 7;
+
+  oneof payload {
+    LogPayload log = 10;
+    MetricPayload metric = 11;
+    PointerPayload pointer = 12;
+    EnrichmentPayload enrichment = 13;
+  }
+}
+
+message LogPayload {
+  string message = 1;
+  string severity_hint = 2;
+  map<string, string> tags = 3;
+}
+
+message MetricPayload {
+  string name = 1;
+  double value = 2;
+  map<string, string> tags = 3;
+}
+
+// Used by Prototype C: broker carries a small pointer, while the raw payload lives in a log store.
+message PointerPayload {
+  string payload_ref = 1;   // e.g., "opensearch:index/docId" or "s3://bucket/key"
+  string content_hash = 2;  // used for integrity/dedup
+}
+
+message Enrichment {
+  string category = 1;
+  string severity = 2;
+  double confidence = 3;
+  repeated string entities = 4;
+  string model_version = 5;
+}
+
+message EnrichmentPayload {
+  Enrichment enrichment = 1;
+}
+

@@ -1,0 +1,32 @@
+% Shared LaTeX preamble for Watchdog docs.
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\setlist[itemize]{noitemsep,topsep=2pt,leftmargin=1.2em}
+\setlist[enumerate]{noitemsep,topsep=2pt,leftmargin=1.6em}
+
+\titleformat{\section}{\Large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+\newcommand{\watchdog}{Watchdog}
+\newcommand{\service}[1]{\texttt{#1}}
+\newcommand{\apiendpoint}[1]{\texttt{#1}}
+
+% Diagrams are rendered to ../diagrams/images (relative to docs/latex).
+\graphicspath{{../diagrams/images/}}

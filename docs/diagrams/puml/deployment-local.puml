@@ -1,0 +1,36 @@
+@startuml
+title Local Development Deployment (Dockerized)
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+
+node "Developer Machine" {
+  node "docker network" {
+    node "watcher-service\n(container)" as W
+    node "core-service\n(container)" as C
+    node "nlp-service\n(container)" as N
+    queue "Kafka\n(container)" as K
+    cloud "Log Store\n(MinIO/OpenSearch)\n(optional)" as LS
+  }
+
+  node "Supabase Local\n(dockerized via Supabase)" as Supa {
+    database "Supabase Postgres" as PG
+    node "Supabase Auth" as Auth
+  }
+}
+
+W --> C : gRPC (Prototype A)\nOR publish pointer events
+W --> K : publish PointerEvent (C)
+K --> C : consume PointerEvent
+C --> PG : JDBC (to Supabase Postgres)
+C --> Auth : validate JWT\n(configured issuer/secret)
+C --> N : gRPC internal\n(on-demand)
+K --> N : consume pointer events\n(optional)
+N --> K : publish EnrichmentEvent
+K --> C : consume EnrichmentEvent
+W ..> LS : write raw logs\n(optional)
+N ..> LS : fetch raw logs\n(optional)
+
+@enduml

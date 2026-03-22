@@ -1,3 +1,5 @@
+"""FastAPI application factory for the NLP service."""
+
 from fastapi import FastAPI
 
 from app.api.routes import internal_router, v1_router
@@ -5,6 +7,8 @@ from app.core.config import settings
 
 
 def create_app() -> FastAPI:
+    """Create and configure the FastAPI application instance."""
+
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
@@ -17,4 +21,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

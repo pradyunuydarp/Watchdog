@@ -11,7 +11,13 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+  kafka:
+    bootstrap-servers: ${WATCHDOG_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
 logging:
   level:
     org.hibernate.SQL: DEBUG
+
+watchdog:
+  kafka:
+    enabled: ${WATCHDOG_KAFKA_ENABLED:true}

@@ -9,6 +9,12 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
+/**
+ * Basic ticket command/query service used by the current REST API.
+ *
+ * <p>Higher-level orchestration from Kafka events should delegate to this service instead of bypassing
+ * it, so ticket creation logic remains centralized.
+ */
 @Service
 public class TicketService {
 
@@ -18,6 +24,9 @@ public class TicketService {
         this.ticketRepository = ticketRepository;
     }
 
+    /**
+     * Creates a ticket directly from a user/API request.
+     */
     public Ticket createTicket(TicketCreateRequest request) {
         Ticket ticket = Ticket.open(
                 request.title(),
@@ -28,15 +37,24 @@ public class TicketService {
         return ticketRepository.save(ticket);
     }
 
+    /**
+     * Returns all tickets in repository-defined sort order.
+     */
     public List<Ticket> listTickets() {
         return ticketRepository.findAll();
     }
 
+    /**
+     * Loads a single ticket or throws a domain-specific not-found exception.
+     */
     public Ticket getTicket(UUID id) {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new TicketNotFoundException(id));
     }
 
+    /**
+     * Creates a simple placeholder ticket that can be used by wiring checks during early development.
+     */
     public Ticket createOperationalPlaceholderTicket(String source) {
         TicketCreateRequest request = new TicketCreateRequest(
                 "Placeholder incident",

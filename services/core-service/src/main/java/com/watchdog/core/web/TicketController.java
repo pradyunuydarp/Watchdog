@@ -16,6 +16,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Public REST controller for operator-driven ticket access.
+ *
+ * <p>Internal machine-to-machine integrations are moving toward Kafka and gRPC. This controller remains
+ * the operator-facing entry point exposed through the API gateway/dashboard.
+ */
 @RestController
 @RequestMapping("/api/v1/tickets")
 public class TicketController {

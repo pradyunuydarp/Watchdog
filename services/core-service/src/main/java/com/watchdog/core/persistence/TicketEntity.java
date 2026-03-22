@@ -46,6 +46,12 @@ public class TicketEntity {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    /**
+     * JPA-only constructor.
+     *
+     * <p>Frameworks instantiate entities reflectively, so the application code should use the explicit
+     * constructor together with mapper classes instead of this no-arg path.
+     */
     protected TicketEntity() {
     }
 

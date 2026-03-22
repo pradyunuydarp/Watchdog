@@ -8,11 +8,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Primary
+@Profile({"local", "test"})
 public class InMemoryTicketRepository implements TicketRepository {
 
     private final Map<UUID, Ticket> tickets = new ConcurrentHashMap<>();
@@ -35,6 +35,12 @@ public class InMemoryTicketRepository implements TicketRepository {
                 .toList();
     }
 
+    /**
+     * Seeds repository state for demos and tests.
+     *
+     * <p>The method copies the input list to avoid accidental concurrent modifications while loading
+     * development fixtures.
+     */
     public void seed(List<Ticket> seedTickets) {
         for (Ticket ticket : new ArrayList<>(seedTickets)) {
             tickets.put(ticket.getId(), ticket);

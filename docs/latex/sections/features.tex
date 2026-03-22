@@ -1,0 +1,54 @@
+\section{Features (Simple English)}
+
+This section lists what \watchdog{} does (and what it is planned to do) using simple, non-jargon language.
+
+\subsection{Ingestion and Normalization}
+\begin{itemize}
+  \item Accept logs and metrics over HTTP from external producers.
+  \item Validate the incoming payload (required fields, supported kinds, size limits).
+  \item Normalize the event shape so downstream services see consistent fields.
+  \item Classify incoming data as either a \emph{log} (reactive) or a \emph{metric} (proactive).
+  \item Provide health endpoints so operators can verify the service is up.
+\end{itemize}
+
+\subsection{Incident (Ticket) Management}
+\begin{itemize}
+  \item Create an incident ticket when a critical condition is detected.
+  \item Track ticket status through a small lifecycle: \texttt{OPEN} $\rightarrow$ \texttt{INVESTIGATING} $\rightarrow$ \texttt{RESOLVED}.
+  \item List and fetch tickets so an operator can see what is happening.
+  \item Allow an operator to manually update a ticket (status and notes/comments).
+\end{itemize}
+
+\subsection{Rules and Proactive Alerts}
+\begin{itemize}
+  \item Evaluate metrics against thresholds (for example, ``error rate too high'').
+  \item Reduce noise by suppressing duplicates and ignoring low-signal events (roadmap).
+  \item Support backpressure so bursts of data do not overwhelm the system (roadmap).
+\end{itemize}
+
+\subsection{NLP Enrichment (Intelligence Layer)}
+\begin{itemize}
+  \item Analyze log text and return: category (example: database), severity, confidence score, and extracted keywords/entities.
+  \item Support a basic heuristic mode today and model-backed inference later.
+\end{itemize}
+
+\subsection{Security and Access Control}
+\begin{itemize}
+  \item Protect management APIs with authentication (JWT in the current starter; real JWT validation and RBAC are planned).
+  \item Keep health checks unauthenticated for infrastructure probes.
+  \item Plan for secure service-to-service calls (mTLS / service identity) once traffic patterns stabilize.
+\end{itemize}
+
+\subsection{Observability and Operations}
+\begin{itemize}
+  \item Emit logs and basic health endpoints from each service.
+  \item Plan for metrics endpoints compatible with Prometheus and dashboards in Grafana.
+  \item Plan for tracing and correlation IDs across services.
+\end{itemize}
+
+\subsection{User Interface (Roadmap)}
+\begin{itemize}
+  \item Provide a real-time dashboard to view active tickets and recent events (roadmap).
+  \item Provide admin screens for user management and configuration (roadmap).
+\end{itemize}
+

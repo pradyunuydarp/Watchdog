@@ -1,0 +1,23 @@
+@startuml
+title Prototype A - Direct Orchestration with gRPC (No Broker)
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+
+actor "Producers" as Prod
+
+rectangle "Watcher Service (Go)\n- validate\n- normalize\n- classify kind" as Watcher
+rectangle "Core Service (Spring)\n- rules\n- tickets\n- auth" as Core
+rectangle "NLP Service (FastAPI)\n- classify\n- entities\n- confidence" as NLP
+database "PostgreSQL" as PG
+
+Prod --> Watcher : POST /api/v1/ingest
+Watcher --> Core : gRPC SubmitEvent\n(normalized event)
+Core --> PG : insert/update ticket
+Core --> NLP : gRPC Analyze\n(when kind=LOG)
+NLP --> Core : enrichment
+Core --> PG : update ticket enrichment
+
+@enduml

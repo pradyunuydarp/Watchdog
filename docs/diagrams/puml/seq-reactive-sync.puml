@@ -1,0 +1,25 @@
+@startuml
+title Reactive Log Flow (Synchronous Enrichment)
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+
+actor Producer as P
+participant "Watcher Service" as W
+participant "Core Service" as C
+participant "NLP Service" as N
+database "PostgreSQL" as DB
+
+P -> W : POST /api/v1/ingest (LOG)
+W -> W : validate + normalize\nassign event_id
+W -> C : POST /api/internal/events\nNormalizedEvent
+C -> C : rules: open/update ticket?
+C -> N : gRPC Analyze\n{text}
+N --> C : {category,severity,confidence,entities}
+C -> DB : upsert ticket + enrichment
+C --> W : 202 Accepted\n(ticket_id, event_id)
+W --> P : 202 Accepted
+
+@enduml

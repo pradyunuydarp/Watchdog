@@ -6,6 +6,9 @@ import com.watchdog.core.domain.TicketType;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Serialized ticket view returned to REST clients.
+ */
 public record TicketResponse(
         UUID id,
         String title,

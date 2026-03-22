@@ -1,0 +1,36 @@
+@startuml
+title Prototype B - Event-Driven with Broker
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Monospaced
+skinparam ArrowColor #2d2d2d
+
+actor "Producers" as Prod
+
+rectangle "Watcher Service (Go)\n- validate\n- normalize\n- publish" as Watcher
+queue "Kafka\n(events topic)" as Broker
+queue "DLQ topic\n(poison messages)" as DLQ
+rectangle "Core Service (Spring)\n- consume\n- rules\n- tickets" as Core
+rectangle "NLP Service (FastAPI)\n- analyze" as NLP
+database "PostgreSQL" as PG
+
+Prod --> Watcher : POST /api/v1/ingest
+Watcher --> Broker : publish NormalizedEvent
+
+Broker --> Core : consume NormalizedEvent
+Core --> PG : insert/update ticket
+
+Core --> NLP : (option 1)\ngRPC Analyze (sync)
+NLP --> Core : enrichment
+Core --> PG : persist enrichment
+
+Broker --> NLP : (option 2)\nNLP consumes LOG events
+NLP --> Broker : publish EnrichmentEvent
+Broker --> Core : consume EnrichmentEvent
+Core --> PG : attach enrichment
+
+Broker --> DLQ : failed retries\n(max attempts)
+
+@enduml
